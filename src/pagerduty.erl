@@ -24,49 +24,46 @@
 -behaviour(gen_server).
 
 %% gen_server callbacks
--export([start_link/2, init/1, handle_call/3, handle_cast/2,
+-export([start_link/1, init/1, handle_call/3, handle_cast/2,
          handle_info/2, terminate/2, code_change/3]).
 
--export([trigger/2, trigger/3,
-         acknowledge/2, acknowledge/3,
-         resolve/2, resolve/3,
-         service_key/0, retry_wait/0,
-         call/4, cast/4]).
+-export([trigger/3, trigger/4,
+         acknowledge/3, acknowledge/4,
+         resolve/3, resolve/4,
+         retry_wait/0,
+         call/5, cast/5]).
 
--record(state, {service_key=undefined :: string(),
-                retry_wait=5000 :: pos_integer(),
+-record(state, {retry_wait=5000 :: pos_integer(),
                 timer_ref=undefined :: reference()}).
 
 %% API functions
-start_link(ServiceKey, RetryWait) ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [ServiceKey, RetryWait], []).
+start_link(RetryWait) ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [RetryWait], []).
 
-trigger(IncidentKey, Description) ->
-    trigger(IncidentKey, Description, undefined).
+trigger(ServiceKey, IncidentKey, Description) ->
+    trigger(ServiceKey, IncidentKey, Description, undefined).
 
-trigger(IncidentKey, Description, Details) ->
-    cast(trigger, IncidentKey, Description, Details).
+trigger(ServiceKey, IncidentKey, Description, Details) ->
+    cast(trigger, ServiceKey, IncidentKey, Description, Details).
 
-acknowledge(IncidentKey, Description) ->
-    trigger(IncidentKey, Description, undefined).
+acknowledge(ServiceKey, IncidentKey, Description) ->
+    trigger(ServiceKey, IncidentKey, Description, undefined).
 
-acknowledge(IncidentKey, Description, Details) ->
-    cast(acknowledge, IncidentKey, Description, Details).
+acknowledge(ServiceKey, IncidentKey, Description, Details) ->
+    cast(acknowledge, ServiceKey, IncidentKey, Description, Details).
 
-resolve(IncidentKey, Description) ->
-    trigger(IncidentKey, Description, undefined).
+resolve(ServiceKey, IncidentKey, Description) ->
+    trigger(ServiceKey, IncidentKey, Description, undefined).
 
-resolve(IncidentKey, Description, Details) ->
-    cast(resolve, IncidentKey, Description, Details).
+resolve(ServiceKey, IncidentKey, Description, Details) ->
+    cast(resolve, ServiceKey, IncidentKey, Description, Details).
 
-call(EventType, IncidentKey, Description, Details) ->
-    gen_server:call(?MODULE, {EventType, IncidentKey, Description, Details}, 10000).
+call(EventType, ServiceKey, IncidentKey, Description, Details) ->
+    gen_server:call(?MODULE, {EventType, ServiceKey, IncidentKey, Description, Details}, 10000).
 
-cast(EventType, IncidentKey, Description, Details) ->
-    gen_server:cast(?MODULE, {EventType, IncidentKey, Description, Details}).
+cast(EventType, ServiceKey, IncidentKey, Description, Details) ->
+    gen_server:cast(?MODULE, {EventType, ServiceKey, IncidentKey, Description, Details}).
 
-service_key() ->
-    gen_server:call(?MODULE, service_key).
 
 retry_wait() ->
     gen_server:call(?MODULE, retry_wait).
@@ -83,8 +80,8 @@ retry_wait() ->
 %% Description: Initiates the server
 %% @hidden
 %%--------------------------------------------------------------------
-init([ServiceKey, RetryWait]) ->
-    {ok, #state{service_key=ServiceKey, retry_wait=parse_retry_wait(RetryWait)}}.
+init([RetryWait]) ->
+    {ok, #state{retry_wait=parse_retry_wait(RetryWait)}}.
 
 %%--------------------------------------------------------------------
 %% Function: %% handle_call(Request, From, State) -> {reply, Reply, State} |
@@ -96,11 +93,10 @@ init([ServiceKey, RetryWait]) ->
 %% Description: Handling call messages
 %% @hidden
 %%--------------------------------------------------------------------
-handle_call(service_key, _From, State) ->
-    {reply, {ok, State#state.service_key}, State};
 handle_call(retry_wait, _From, State) ->
     {reply, {ok, State#state.retry_wait}, State};
-handle_call({EventType, IncidentKey, Description, Details}, _From, #state{service_key=ServiceKey}=State) ->
+
+handle_call({EventType, ServiceKey, IncidentKey, Description, Details}, _From, State) ->
     Result = build_and_post(EventType, ServiceKey, IncidentKey, Description, Details),
     {reply, Result, State};
 
@@ -114,7 +110,7 @@ handle_call(_Msg, _From, State) ->
 %% Description: Handling cast messages
 %% @hidden
 %%--------------------------------------------------------------------
-handle_cast(Incident={EventType, IncidentKey, Description, Details}, #state{service_key=ServiceKey}=State) ->
+handle_cast(Incident={EventType, ServiceKey, IncidentKey, Description, Details}, State) ->
     case build_and_post(EventType, ServiceKey, IncidentKey, Description, Details) of
         {ok, sent} ->
             io:format("posted ~p event type to pagerduty: ~p~n", [EventType, IncidentKey]),
@@ -136,6 +132,7 @@ handle_cast(Incident={EventType, IncidentKey, Description, Details}, #state{serv
 %%--------------------------------------------------------------------
 handle_info({timeout, TimerRef, {retry, Incident}}, State=#state{ timer_ref=TimerRef }) ->
     handle_cast(Incident, State);
+
 handle_info(_Info, State) ->
     {noreply, State}.
 

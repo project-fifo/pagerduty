@@ -2,6 +2,8 @@
 -include_lib("common_test/include/ct.hrl").
 -compile(export_all).
 
+-define(SERVICE_KEY, "TEST_API_CALLS").
+
 all() ->
     [{group, application_start}, {group, api_calls}].
 
@@ -26,10 +28,11 @@ end_per_suite(_Config) ->
 
 init_per_group(application_start, Config) ->
     Config;
+
 init_per_group(api_calls, Config) ->
-    application:set_env(pagerduty, service_key, "TEST_API_CALLS"),
     ok = a_start(pagerduty, temporary),
     Config.
+
 end_per_group(_Group, _Config) ->
     ok.
 
@@ -55,32 +58,24 @@ start_ok(App, _Type, {error, Reason}) ->
         erlang:error({app_start_failed, App, Reason}).
 
 start(_Config) ->
-    application:set_env(pagerduty, service_key, "TEST"),
     a_start(pagerduty, temporary),
-    {ok, "TEST"} = pagerduty:service_key(),
     {ok, 5000} = pagerduty:retry_wait(),
     application:stop(pagerduty).
 
 start_with_retry(_Config) ->
-    application:set_env(pagerduty, service_key, "TEST_WITH_RETRY"),
     application:set_env(pagerduty, retry_wait, 3000),
     a_start(pagerduty, temporary),
-    {ok, "TEST_WITH_RETRY"} = pagerduty:service_key(),
     {ok, 3000} = pagerduty:retry_wait(),
     application:stop(pagerduty).
 
 start_with_os(_Config) ->
-    os:putenv("PAGERDUTY_SERVICE_KEY", "TEST_WITH_OS"),
     a_start(pagerduty, temporary),
-    {ok, "TEST_WITH_OS"} = pagerduty:service_key(),
     {ok, 5000} = pagerduty:retry_wait(),
     application:stop(pagerduty).
 
 start_with_os_retry(_Config) ->
-    os:putenv("PAGERDUTY_SERVICE_KEY", "TEST_WITH_OS_RETRY"),
     os:putenv("PAGERDUTY_RETRY_WAIT", "3000"),
     a_start(pagerduty, temporary),
-    {ok, "TEST_WITH_OS_RETRY"} = pagerduty:service_key(),
     {ok, 3000} = pagerduty:retry_wait(),
     application:stop(pagerduty).
 
@@ -101,16 +96,16 @@ event_page(EventType, Config) ->
     BadResp = {ok, {{"", 400, ""}, "", <<"{\"status\":\"invalid\",\"message\":\"an invalid response\",\"errors\":[\"error 1\",\"error 2\"]}">>}},
     meck:new(httpc),
     meck:expect(httpc, request, [{[post, {Endpoint, [], "application/json", '_'}, [], []], GoodResp}]),
-    {ok, sent} = pagerduty:call(EventType, "Test 200 Response", "Tesing pagerduty erlang module", undefined),
+    {ok, sent} = pagerduty:call(EventType, ?SERVICE_KEY, "Test 200 Response", "Tesing pagerduty erlang module", undefined),
 
     meck:expect(httpc, request, [{[post, {Endpoint, [], "application/json", '_'}, [], []], RetryResp1}]),
-    {ok, retry} = pagerduty:call(EventType, "Test 403 Response", "Tesing pagerduty erlang module", undefined),
+    {ok, retry} = pagerduty:call(EventType, ?SERVICE_KEY, "Test 403 Response", "Tesing pagerduty erlang module", undefined),
 
     meck:expect(httpc, request, [{[post, {Endpoint, [], "application/json", '_'}, [], []], RetryResp2}]),
-    {ok, retry} = pagerduty:call(EventType, "Test 500 Response", "Tesing pagerduty erlang module", undefined),
+    {ok, retry} = pagerduty:call(EventType, ?SERVICE_KEY, "Test 500 Response", "Tesing pagerduty erlang module", undefined),
 
     meck:expect(httpc, request, [{[post, {Endpoint, [], "application/json", '_'}, [], []], BadResp}]),
-    {error, Reason} = pagerduty:call(EventType, "Test 400 Response", "Tesing pagerduty erlang module", undefined),
+    {error, Reason} = pagerduty:call(EventType, ?SERVICE_KEY, "Test 400 Response", "Tesing pagerduty erlang module", undefined),
     {<<"status">>, <<"invalid">>} = lists:keyfind(<<"status">>, 1, Reason),
     ok.
 

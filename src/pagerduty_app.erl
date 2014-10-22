@@ -37,11 +37,11 @@ stop(_State) ->
     ok.
 
 init([]) ->
-    ServiceKey = get_env(service_key),
     RetryWait = get_env(retry_wait),
-    {ok, {{one_for_one, 5, 10}, [
-        {pagerduty, {pagerduty, start_link, [ServiceKey, RetryWait]}, permanent, 2000, worker, [pagerduty]}
-    ]}}.
+    {ok, {{one_for_one, 5, 10},
+          [
+           {pagerduty, {pagerduty, start_link, [RetryWait]}, permanent, 2000, worker, [pagerduty]}
+          ]}}.
 
 get_env(Env) ->
     case application:get_env(pagerduty, Env) of
