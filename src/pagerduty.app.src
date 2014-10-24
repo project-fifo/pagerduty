@@ -1,6 +1,6 @@
 {application, pagerduty, [
     {description, "Erlang pagerduty client"},
-    {vsn, "0.1.0"},
+    {vsn, "0.1.1"},
     {modules, []},
     {applications, [stdlib, kernel, inets, crypto, public_key, asn1, ssl, jsx]},
     {registered, []},

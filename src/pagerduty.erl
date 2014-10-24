@@ -194,7 +194,15 @@ handle(Err) ->
 
 
 proplist_to_bin(PropList) ->
-    [ {to_bin(Key), to_bin(Val)} || {Key, Val} <- PropList ].
+    [ {to_bin(Key), ptb_val(Val)} || {Key, Val} <- PropList ].
+
+
+ptb_val(I) when is_integer(I) ->
+    I;
+ptb_val(F) when is_float(F) ->
+    F;
+ptb_val(O) ->
+    to_bin(O).
 
 to_bin(X) when is_atom(X) ->
     atom_to_binary(X, utf8);
