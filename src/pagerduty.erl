@@ -180,7 +180,8 @@ handle({ok,{{_,200,_},_,_}}) ->
 handle({ok,{{_,201,_},_,_}}) ->
     {ok, sent};
 handle({ok,{{_,400,_},_,Body}}) ->
-    try jsx:decode(Body) of
+    BodyB = list_to_binary(Body),
+    try jsx:decode(BodyB) of
         Resp ->
             {error, Resp}
     catch
