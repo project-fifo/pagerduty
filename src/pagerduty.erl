@@ -177,6 +177,8 @@ post(Json) ->
                   []).
 handle({ok,{{_,200,_},_,_}}) ->
     {ok, sent};
+handle({ok,{{_,201,_},_,_}}) ->
+    {ok, sent};
 handle({ok,{{_,400,_},_,Body}}) ->
     try jsx:decode(Body) of
         Resp ->
